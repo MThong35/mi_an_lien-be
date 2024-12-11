@@ -21,6 +21,7 @@ namespace thesis_comicverse_webservice_api.Repositories
         Task<KeyValuePair<string, User>> Login(LoginDTO loginInfor);
         Task<KeyValuePair<string, User>> Register(RegisterDTO registInfor);
         string GetMyName();
+        //Task<>
     }
 
     public class UserRepository : IUserRepository

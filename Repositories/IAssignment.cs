@@ -8,7 +8,12 @@ namespace thesis_comicverse_webservice_api.Repositories
     public interface IAssignment
     {
         Task<IEnumerable<object>> GetAllAssignmentsAsync();
-        Task<Assign> DeleteAssignmentAsync(int id);
+        Task<Models.Task> DeleteAssignmentAsync(int taskId);
+        Task<Models.Task> AddTaskAsync(Models.Task task);
+        Task<List<Models.Task>> GetAllTaskAsync();
+        Task<Assign> AssignUserTask(int userId, int taskId);
+        Task<Models.Task> UpdateTaskAsync(Models.Task task);
+        Task<Models.Task> GetAssignmentByIdAsync(int id);
     }
 
     public class AssignmentRepository : IAssignment
@@ -34,23 +39,31 @@ namespace thesis_comicverse_webservice_api.Repositories
                     throw new ArgumentNullException(nameof(_context.Users));
 
                 var assignments = await (
-                    from assign in _context.Assign
-                    join task in _context.Task on assign.TaskID equals task.taskID
-                    join user in _context.Users on assign.userId equals user.userId
+                    from task in _context.Task
+                    join assign in _context.Assign
+                    on task.taskID equals assign.TaskID into taskAssign
+                    from assign in taskAssign.DefaultIfEmpty() // Left join with Assign table
+                    join user in _context.Users
+                    on assign.userId equals user.userId into assignUser
+                    from user in assignUser.DefaultIfEmpty() // Left join with User table
                     select new
                     {
-                        AssignID = assign.AssignID,
-                        TaskID = task.taskID,
+                        TaskId = task.taskID,
                         TaskName = task.taskName,
-                        AssignedTo = user.firstName + " " + user.lastName,
-                        TaskStatus = task.status,
-                        Priority = task.priority,
-                        Complete = task.progressPercentage,
-                        AssignAt = assign.assignAt,
+                        CreatedAt = task.createAt,
                         Deadline = task.deadline,
-                        RemainDay = task.deadline - task.deadline
+                        Progress = task.progressPercentage,
+                        Priority = task.priority,
+                        Status = task.status,
+                        AssignedUserId = assign != null ? assign.userId : (int?)null, // Null check
+                        AssignedAt = assign != null ? assign.assignAt : (DateTime?)null, // Null check
+                        UserName = user != null ? user.userName : null, // Null check
+                        UserEmail = user != null ? user.email : null, // Null check
+                        UserRole = user != null ? user.role : null, // Null check
+                        UserFirstName = assign != null && user != null ? user.firstName : null, // Include firstName if assigned
+                        UserLastName = assign != null && user != null ? user.lastName : null  // Include lastName if assigned
                     }
-                    ).ToListAsync();
+                ).ToListAsync();
 
                 return assignments;
             }
@@ -60,34 +73,133 @@ namespace thesis_comicverse_webservice_api.Repositories
             }
         }
 
-        //public Task<IEnumerable<object>> GetAllAssignmentsAysnc()
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        public async Task<Assign> DeleteAssignmentAsync(int id)
+        public async Task<Models.Task> GetAssignmentByIdAsync(int id)
         {
             try
             {
-                // mappping the id to the assign table
+                var task = await _context.Task!
+                    .FirstOrDefaultAsync(t => t.taskID == id);
 
-                var taskWasAssign = await _context.Assign.FirstOrDefaultAsync(a => a.AssignID == id);
-
-                if (taskWasAssign == null)
-                {
-                    return null;
-                }
-
-                if (taskWasAssign != null) {
-                    _context.Assign.Remove(taskWasAssign);
-                    await _context.SaveChangesAsync();
-                }
-
-                return taskWasAssign;
+                return task;
             }
             catch (Exception ex)
             {
-                throw new Exception($"Couldn't delete assignment: {ex.Message}");
+                throw new Exception($"Couldn't retrieve assignment: {ex.Message}");
+            }
+        }
+
+
+
+        public async Task<Models.Task> DeleteAssignmentAsync(int taskId)
+        {
+            try
+            {
+                // Retrieve the assignments related to the TaskID
+                var taskAssignments = await _context.Assign!
+                    .Where(a => a.TaskID == taskId)
+                    .ToListAsync();
+
+                _logger.LogInformation($"TaskAssignments: {JsonConvert.SerializeObject(taskAssignments)}");
+
+                if (taskAssignments != null || !taskAssignments!.Any())
+                {
+                    _context.Assign!.RemoveRange(taskAssignments!);
+                }
+
+                var task = await _context.Task!
+                    .FirstOrDefaultAsync(t => t.taskID == taskId);
+
+                if (task != null)
+                {
+                    _context.Task.Remove(task);
+                }
+
+                await _context.SaveChangesAsync();
+
+                return task;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Couldn't delete assignment and task: {ex.Message}");
+            }
+        }
+
+
+
+
+        public async Task<Models.Task> AddTaskAsync(Models.Task task)
+        {
+            try
+            {
+                if (task == null)
+                {
+                    throw new ArgumentNullException(nameof(task));
+                }
+
+                await _context.Task!.AddAsync(task);
+                await _context.SaveChangesAsync();
+
+                return task;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Couldn't add assignment: {ex.Message}");
+            }
+        }
+
+        public async Task<Models.Task> UpdateTaskAsync(Models.Task task)
+        {
+            try
+            {
+                if (task == null)
+                {
+                    throw new ArgumentNullException(nameof(task));
+                }
+
+                _context.Task!.Update(task);
+                await _context.SaveChangesAsync();
+
+                return task;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Couldn't update assignment: {ex.Message}");
+            }
+        }
+
+        public async Task<List<Models.Task>> GetAllTaskAsync()
+        {
+            try
+            {
+                var task = await _context.Task.ToListAsync();
+                return task;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Couldn't retrieve task: {ex.Message}");
+            }
+        }
+
+        public async Task<Assign> AssignUserTask(int userId, int taskId)
+        {
+            try
+            {
+                var assign = new Assign
+                {
+                    userId = userId,
+                    TaskID = taskId,
+                    assignAt = DateTime.Now
+                };
+
+                await _context.Assign!.AddAsync(assign);
+                await _context.SaveChangesAsync();
+
+                return assign;
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Couldn't assign user to task: {ex.Message}");
             }
         }
     }

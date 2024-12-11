@@ -10,7 +10,7 @@
         public int? taskID { get; set; }
         public DateTime? releaseDate { get; set; }
         public int? publisherID { get; set; }
-        public int? releaseID { get; set; }
+        public int? releasingID { get; set; }
         public int? authorID { get; set; }
         public string? language { get; set; }
         public int? categoryID { get; set; }
