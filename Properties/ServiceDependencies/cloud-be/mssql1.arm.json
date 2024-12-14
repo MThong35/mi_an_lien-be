@@ -4,7 +4,7 @@
   "parameters": {
     "resourceGroupName": {
       "type": "string",
-      "defaultValue": "thesis-comicverse-database",
+      "defaultValue": "cloud-db",
       "metadata": {
         "_parameterType": "resourceGroup",
         "description": "Name of the resource group for the resource. It is recommended to put resources under same resource group for better tracking."
@@ -51,7 +51,7 @@
             {
               "kind": "v12.0",
               "location": "[parameters('resourceLocation')]",
-              "name": "comicverse-dbserver",
+              "name": "cloud-db-sqlserver",
               "type": "Microsoft.Sql/servers",
               "apiVersion": "2017-10-01-preview"
             },
@@ -63,11 +63,11 @@
               },
               "kind": "v12.0,user",
               "location": "[parameters('resourceLocation')]",
-              "name": "comicverse-dbserver/thesis-database",
+              "name": "cloud-db-sqlserver/thesis-database",
               "type": "Microsoft.Sql/servers/databases",
               "apiVersion": "2017-10-01-preview",
               "dependsOn": [
-                "comicverse-dbserver"
+                "cloud-db-sqlserver"
               ]
             }
           ]
